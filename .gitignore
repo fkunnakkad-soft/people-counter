@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+build/
+dist/
+Output/
+events/
+*.pyc
+*.spec
+*.deb
+*.exe
+*.dmg
+*.zip
