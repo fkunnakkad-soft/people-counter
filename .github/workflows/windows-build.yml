@@ -1,0 +1,49 @@
+name: Build Windows Installer
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+jobs:
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install "pyinstaller==6.*"
+
+      # Optional: create ICO from PNG if present
+      - name: Make ICO from PNG (optional)
+        run: |
+          if (Test-Path assets\icon.png) {
+            choco install -y imagemagick
+            magick assets\icon.png -define icon:auto-resize=256,128,64,48,32,16 assets\icon.ico
+          }
+
+      - name: PyInstaller build
+        run: |
+          $icon = (Test-Path assets\icon.ico) ? '--icon "assets\icon.ico"' : ''
+          $data = (Test-Path assets\icon.png) ? '--add-data "assets\icon.png;assets"' : ''
+          pyinstaller --noconfirm --windowed --name PeopleCounter $data $icon main.py
+
+      - name: Install Inno Setup
+        run: choco install -y innosetup
+
+      - name: Build installer (Inno Setup)
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: |
+            dist\PeopleCounter\**
+            Output\PeopleCounterSetup.exe
