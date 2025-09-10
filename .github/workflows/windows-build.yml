@@ -20,18 +20,28 @@ jobs:
           pip install "pyinstaller==6.*"
 
       # Optional: create ICO from PNG if present
-      - name: Make ICO from PNG (optional)
+      - name: Prepare icon (optional)
+        shell: pwsh
         run: |
-          if (Test-Path assets\icon.png) {
+          New-Item -ItemType Directory -Force -Path assets | Out-Null
+          $candidates = @('assets\icon.png','assets\icon.jpg','icon.png','icon.jpg')
+          $src = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if ($src) {
             choco install -y imagemagick
-            magick assets\icon.png -define icon:auto-resize=256,128,64,48,32,16 assets\icon.ico
+            # Make multi-size ICO from whatever we found (png/jpg, any path)
+            magick "$src" -resize 256x256 `
+              -define icon:auto-resize=256,128,64,48,32,16 assets\icon.ico
+            Write-Host "Icon prepared from $src"
+          } else {
+            Write-Host "No icon found (assets/icon.png|icon.png|assets/icon.jpg|icon.jpg). Skipping."
           }
 
       - name: PyInstaller build
+        shell: pwsh
         run: |
-          $icon = (Test-Path assets\icon.ico) ? '--icon "assets\icon.ico"' : ''
-          $data = (Test-Path assets\icon.png) ? '--add-data "assets\icon.png;assets"' : ''
-          pyinstaller --noconfirm --windowed --name PeopleCounter $data $icon main.py
+          $opts = @('--noconfirm','--windowed','--name','PeopleCounter')
+          if (Test-Path 'assets\icon.ico') { $opts += @('--icon','assets\icon.ico') }
+          pyinstaller @opts main.py
 
       - name: Install Inno Setup
         run: choco install -y innosetup
